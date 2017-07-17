@@ -42,47 +42,44 @@ func main() {
 		p.Fail("No hosts specified")
 	}
 
-	inchan := make(chan psshutils.HostInfo, args.Parallel)
-	outchan := make(chan Result)
+	jobs := make(chan psshutils.HostInfo, len(hosts))
+	results := make(chan Result, len(hosts))
 
-	counter := 0
-	var results = []Result{}
+	var res = []Result{}
 
+	// create workers
 	for i := 1; i <= args.Parallel; i++ {
-		go pssh(i, args.Command, args.Timeout, inchan, outchan)
+		go pssh(i, args.Command, args.Timeout, jobs, results)
 	}
 
-	for true {
-		select {
-		case inchan <- hosts[counter]:
-			counter++
-			if counter+1 >= len(hosts) {
-				log.Printf("I am done, counter = %d\n", counter)
-				close(inchan)
-			} else {
-				log.Printf("counter = %d, host = %s\n", counter, hosts[counter].Addr)
-			}
-		case r := <-outchan:
-			log.Printf("reading results for host = %s", r.Addr)
-			results = append(results, r)
-		}
+	// submit jobs
+	for _, h := range hosts {
+		jobs <- h
+		log.Printf("submitting job host = %s", h.Addr)
 	}
 
+	// read results
+	for i := 0; i < len(hosts); i++ {
+		r := <- results
+		log.Printf("reading results for host = %s", r.Addr)
+		res = append(res, r)
+	}
 }
 
-func pssh(worker int, command []string, timeout int, inchan chan psshutils.HostInfo, outchan chan Result) {
-	host := <- inchan
-	stdout := make([]string, 1)
-	stderr := make([]string, 1)
+func pssh(worker int, command []string, timeout int, jobs <-chan psshutils.HostInfo, results chan<- Result) {
+	for host := range jobs {
+		stdout := make([]string, 1)
+		stderr := make([]string, 1)
 
-	log.Printf("pssh(%d) %s\n", worker, host.Addr)
-	stdout[0] = "this is stdout for " + host.Addr
-	stderr[0] = "no stderr"
-	time.Sleep(1000000000)
-	outchan <- Result{
-		Stdout: stdout,
-		Stderr: stderr,
-		Code:   0,
-		Addr:   host.Addr,
+		log.Printf("pssh(%d) got job %s\n", worker, host.Addr)
+		stdout[0] = "this is stdout for " + host.Addr
+		stderr[0] = "no stderr"
+		time.Sleep(1000000000)
+		results <- Result{
+			Stdout: stdout,
+			Stderr: stderr,
+			Code:   0,
+			Addr:   host.Addr,
+		}
 	}
 }
