@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/alexflint/go-arg"
 	//"golang.org/x/crypto/ssh"
-	"log"
 	"github.com/cobaugh/pssh-go/psshutils"
+	"log"
 	"time"
 )
 
@@ -45,36 +45,40 @@ func main() {
 	inchan := make(chan psshutils.HostInfo, args.Parallel)
 	outchan := make(chan Result)
 
-	numHosts := len(hosts)
 	counter := 0
 	var results = []Result{}
 
-	go pssh(args.Command, args.Timeout, inchan, outchan)
+	for i := 1; i <= args.Parallel; i++ {
+		go pssh(i, args.Command, args.Timeout, inchan, outchan)
+	}
+
 	for true {
 		select {
 		case inchan <- hosts[counter]:
-			if counter-1 == numHosts {
+			counter++
+			if counter+1 >= len(hosts) {
+				log.Printf("I am done, counter = %d\n", counter)
 				close(inchan)
 			} else {
-				counter++
+				log.Printf("counter = %d, host = %s\n", counter, hosts[counter].Addr)
 			}
 		case r := <-outchan:
+			log.Printf("reading results for host = %s", r.Addr)
 			results = append(results, r)
 		}
 	}
 
 }
 
-func pssh(command []string, timeout int, inchan chan psshutils.HostInfo, outchan chan Result) {
-	host := <-inchan
-
+func pssh(worker int, command []string, timeout int, inchan chan psshutils.HostInfo, outchan chan Result) {
+	host := <- inchan
 	stdout := make([]string, 1)
 	stderr := make([]string, 1)
 
-	log.Printf("pssh() %s\n", host.Addr)
+	log.Printf("pssh(%d) %s\n", worker, host.Addr)
 	stdout[0] = "this is stdout for " + host.Addr
 	stderr[0] = "no stderr"
-	time.Sleep(5000000000)
+	time.Sleep(1000000000)
 	outchan <- Result{
 		Stdout: stdout,
 		Stderr: stderr,
