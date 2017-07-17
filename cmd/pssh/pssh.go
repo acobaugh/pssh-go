@@ -5,7 +5,7 @@ import (
 	"github.com/alexflint/go-arg"
 	//"golang.org/x/crypto/ssh"
 	"log"
-	"pssh-go/psshutils"
+	"github.com/cobaugh/pssh-go/psshutils"
 	"time"
 )
 
@@ -52,11 +52,10 @@ func main() {
 	go pssh(args.Command, args.Timeout, inchan, outchan)
 	for true {
 		select {
-		case <-inchan:
+		case inchan <- hosts[counter]:
 			if counter-1 == numHosts {
 				close(inchan)
 			} else {
-				inchan <- hosts[counter]
 				counter++
 			}
 		case r := <-outchan:
