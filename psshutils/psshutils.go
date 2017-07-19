@@ -16,13 +16,14 @@ var DEFAULT_USER = os.Getenv("USER")
 var DEFAULT_PARALLEL = MaxParallelism()
 
 type CommonArgs struct {
-	HostFile   []string `arg:"-h,separate"`
-	HostString []string `arg:"-H,separate"`
-	User       string   `arg:"-l"`
-	Parallel   int      `arg:"-p"`
-	Timeout    int      `arg:"-t"`
-	Verbose    bool     `arg:"-v"`
-	Select     string   `arg:"-s,help:Shell-style glob to filter hosts"`
+	HostFiles []string `arg:"env:HOST_FILES,-f,separate"`
+	Hosts     []string `arg:"env:HOSTS,-H,separate"`
+	User      string   `arg:"-l"`
+	Parallel  int      `arg:"-p"`
+	Timeout   int      `arg:"-t"`
+	ListHosts bool     `arg:"-L,help:List the hosts that were selected"`
+	Verbose   bool     `arg:"-v"`
+	Select    string   `arg:"-s,help:Shell-style glob to filter hosts"`
 }
 
 func (CommonArgs) Version() string {

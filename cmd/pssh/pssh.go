@@ -7,8 +7,8 @@ import (
 	"github.com/cobaugh/pssh-go/psshutils"
 	"log"
 	"os/exec"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type Result struct {
@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// get hosts
-	hosts := psshutils.GetHostsFromArgs(args.HostFile, args.HostString)
+	hosts := psshutils.GetHostsFromArgs(args.HostFiles, args.Hosts)
 
 	// check arguments
 	if args.Command == "" {
@@ -62,7 +62,7 @@ func main() {
 
 	// read results
 	for i := 0; i < len(hosts); i++ {
-		r := <- results
+		r := <-results
 		log.Printf("reading results for host = %s, stdout = %s, stderr = %s", r.Addr, r.Stdout, r.Stderr)
 		res = append(res, r)
 	}
@@ -85,11 +85,11 @@ func pssh(worker int, command string, timeout int, jobs <-chan psshutils.HostInf
 			Stdout: string(stdout[:]),
 			Stderr: stderr,
 			Addr:   host.Addr,
-			Code: 0,
+			Code:   0,
 		}
 	}
 }
 
 func printCommand(cmd *exec.Cmd) {
-  fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
+	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
