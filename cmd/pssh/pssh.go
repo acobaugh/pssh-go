@@ -6,12 +6,14 @@ import (
 	//"golang.org/x/crypto/ssh"
 	"github.com/cobaugh/pssh-go/psshutils"
 	"log"
-	"time"
+	"os/exec"
+	"strings"
+	"strconv"
 )
 
 type Result struct {
-	Stdout []string
-	Stderr []string
+	Stdout string
+	Stderr string
 	Code   int
 	Addr   string
 	Ready  bool
@@ -20,7 +22,7 @@ type Result struct {
 func main() {
 	var args struct {
 		psshutils.CommonArgs
-		Command []string `arg:"positional"`
+		Command string `arg:"positional"`
 	}
 
 	args.Parallel = psshutils.DEFAULT_PARALLEL
@@ -35,7 +37,7 @@ func main() {
 	hosts := psshutils.GetHostsFromArgs(args.HostFile, args.HostString)
 
 	// check arguments
-	if len(args.Command) < 1 {
+	if args.Command == "" {
 		p.Fail("No command specified")
 	}
 	if len(hosts) < 1 {
@@ -61,25 +63,33 @@ func main() {
 	// read results
 	for i := 0; i < len(hosts); i++ {
 		r := <- results
-		log.Printf("reading results for host = %s", r.Addr)
+		log.Printf("reading results for host = %s, stdout = %s, stderr = %s", r.Addr, r.Stdout, r.Stderr)
 		res = append(res, r)
 	}
 }
 
-func pssh(worker int, command []string, timeout int, jobs <-chan psshutils.HostInfo, results chan<- Result) {
+func pssh(worker int, command string, timeout int, jobs <-chan psshutils.HostInfo, results chan<- Result) {
 	for host := range jobs {
-		stdout := make([]string, 1)
-		stderr := make([]string, 1)
+		log.Printf("pssh(%d) got job %s@%s:%d\n", worker, host.User, host.Addr, host.Port)
 
-		log.Printf("pssh(%d) got job %s\n", worker, host.Addr)
-		stdout[0] = "this is stdout for " + host.Addr
-		stderr[0] = "no stderr"
-		time.Sleep(1000000000)
+		stderr := ""
+
+		cmd := exec.Command("ssh", "-l", host.User, "-p", strconv.Itoa(host.Port), host.Addr, command)
+		printCommand(cmd)
+		stdout, err := cmd.Output()
+		if err != nil {
+			stderr = err.Error()
+		}
+
 		results <- Result{
-			Stdout: stdout,
+			Stdout: string(stdout[:]),
 			Stderr: stderr,
-			Code:   0,
 			Addr:   host.Addr,
+			Code: 0,
 		}
 	}
+}
+
+func printCommand(cmd *exec.Cmd) {
+  fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
