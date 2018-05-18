@@ -1,4 +1,4 @@
-package psshutils
+package pssh
 
 import (
 	"bufio"

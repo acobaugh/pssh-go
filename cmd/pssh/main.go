@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/acobaugh/pssh-go"
 	"github.com/alexflint/go-arg"
-	//"golang.org/x/crypto/ssh"
-	"github.com/cobaugh/pssh-go/psshutils"
 	"log"
 	"os/exec"
 	"strconv"
@@ -21,11 +20,11 @@ type Result struct {
 
 func main() {
 	var args struct {
-		psshutils.CommonArgs
+		pssh.CommonArgs
 		Command string `arg:"positional"`
 	}
 
-	args.Parallel = psshutils.DEFAULT_PARALLEL
+	args.Parallel = pssh.DEFAULT_PARALLEL
 
 	// parse args
 	p := arg.MustParse(&args)
@@ -34,7 +33,7 @@ func main() {
 	}
 
 	// get hosts
-	hosts := psshutils.GetHostsFromArgs(args.HostFiles, args.Hosts)
+	hosts := pssh.GetHostsFromArgs(args.HostFiles, args.Hosts)
 
 	// check arguments
 	if args.Command == "" {
@@ -44,14 +43,14 @@ func main() {
 		p.Fail("No hosts specified")
 	}
 
-	jobs := make(chan psshutils.HostInfo, len(hosts))
+	jobs := make(chan pssh.HostInfo, len(hosts))
 	results := make(chan Result, len(hosts))
 
 	var res = []Result{}
 
 	// create workers
 	for i := 1; i <= args.Parallel; i++ {
-		go pssh(i, args.Command, args.Timeout, jobs, results)
+		go worker(i, args.Command, args.Timeout, jobs, results)
 	}
 
 	// submit jobs
@@ -68,7 +67,7 @@ func main() {
 	}
 }
 
-func pssh(worker int, command string, timeout int, jobs <-chan psshutils.HostInfo, results chan<- Result) {
+func worker(worker int, command string, timeout int, jobs <-chan pssh.HostInfo, results chan<- Result) {
 	for host := range jobs {
 		log.Printf("pssh(%d) got job %s@%s:%d\n", worker, host.User, host.Addr, host.Port)
 
