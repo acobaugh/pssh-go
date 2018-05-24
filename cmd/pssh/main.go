@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/acobaugh/pssh-go"
+	"github.com/acobaugh/pssh-go/internal/cli"
+	"github.com/acobaugh/pssh-go/internal/par"
+	"github.com/acobaugh/pssh-go/pkg/hosts"
 	"github.com/alexflint/go-arg"
 	"log"
 	"os/exec"
@@ -20,11 +22,11 @@ type Result struct {
 
 func main() {
 	var args struct {
-		pssh.CommonArgs
+		cli.CommonArgs
 		Command string `arg:"positional"`
 	}
 
-	args.Parallel = pssh.DEFAULT_PARALLEL
+	args.Parallel = par.MaxParallelism()
 
 	// parse args
 	p := arg.MustParse(&args)
@@ -33,18 +35,18 @@ func main() {
 	}
 
 	// get hosts
-	hosts := pssh.GetHostsFromArgs(args.HostFiles, args.Hosts)
+	h := hosts.GetHostsFromArgs(args.HostFiles, args.Hosts)
 
 	// check arguments
 	if args.Command == "" {
 		p.Fail("No command specified")
 	}
-	if len(hosts) < 1 {
+	if len(h) < 1 {
 		p.Fail("No hosts specified")
 	}
 
-	jobs := make(chan pssh.HostInfo, len(hosts))
-	results := make(chan Result, len(hosts))
+	jobs := make(chan hosts.HostInfo, len(h))
+	results := make(chan Result, len(h))
 
 	var res = []Result{}
 
@@ -54,20 +56,20 @@ func main() {
 	}
 
 	// submit jobs
-	for _, h := range hosts {
-		jobs <- h
-		log.Printf("submitting job host = %s", h.Addr)
+	for _, host := range h {
+		jobs <- host
+		log.Printf("submitting job host = %s", host.Addr)
 	}
 
 	// read results
-	for i := 0; i < len(hosts); i++ {
+	for i := 0; i < len(h); i++ {
 		r := <-results
 		log.Printf("reading results for host = %s, stdout = %s, stderr = %s", r.Addr, r.Stdout, r.Stderr)
 		res = append(res, r)
 	}
 }
 
-func worker(worker int, command string, timeout int, jobs <-chan pssh.HostInfo, results chan<- Result) {
+func worker(worker int, command string, timeout int, jobs <-chan hosts.HostInfo, results chan<- Result) {
 	for host := range jobs {
 		log.Printf("pssh(%d) got job %s@%s:%d\n", worker, host.User, host.Addr, host.Port)
 

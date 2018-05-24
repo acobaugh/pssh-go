@@ -1,4 +1,4 @@
-package pssh
+package hosts
 
 import (
 	"bufio"
@@ -6,29 +6,12 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 )
 
 var DEFAULT_PORT = 22
 var DEFAULT_USER = os.Getenv("USER")
-var DEFAULT_PARALLEL = MaxParallelism()
-
-type CommonArgs struct {
-	HostFiles []string `arg:"env:HOST_FILES,-f,separate"`
-	Hosts     []string `arg:"env:HOSTS,-H,separate"`
-	User      string   `arg:"-l"`
-	Parallel  int      `arg:"-p"`
-	Timeout   int      `arg:"-t"`
-	ListHosts bool     `arg:"-L,help:List the hosts that were selected"`
-	Verbose   bool     `arg:"-v"`
-	Select    string   `arg:"-s,help:Shell-style glob to filter hosts"`
-}
-
-func (CommonArgs) Version() string {
-	return os.Args[0] + " pssh-go 0.1"
-}
 
 type HostInfo struct {
 	Addr string
@@ -127,13 +110,4 @@ func parseHostStringArgs(hoststrings []string) []HostInfo {
 
 func GetHostsFromArgs(hostfiles []string, hoststrings []string) []HostInfo {
 	return append(parseHostFileArgs(hostfiles), parseHostStringArgs(hoststrings)...)
-}
-
-func MaxParallelism() int {
-	maxProcs := runtime.GOMAXPROCS(0)
-	numCPU := runtime.NumCPU()
-	if maxProcs < numCPU {
-		return maxProcs
-	}
-	return numCPU
 }
